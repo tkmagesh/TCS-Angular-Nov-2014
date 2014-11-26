@@ -45,6 +45,20 @@
 		}
 	})
 
+	taskManagerApp.service('taskService', function($http, Task, $q){
+		this.getAll = function(){
+			var httpPromise = $http({method : "get", url : "/tasks"});
+			var defered = $q.defer();
+			httpPromise.then(function(response){
+				var tasks = response.data.map(function(taskObj){
+					return new Task(taskObj);
+				});
+				defered.resolve(tasks);
+			});
+			return defered.promise;
+		}
+	})
+
 	taskManagerApp.factory('Task', function(){
 		function Task(defaults){
 			defaults = defaults || {};
@@ -82,7 +96,7 @@
 	});
 
 
-	taskManagerApp.controller('taskManagerController', function($scope, taskStorage, Task, $http){
+	taskManagerApp.controller('taskManagerController', function($scope, taskStorage, Task, taskService){
 		$scope.categories = [
 			{name :'Official', value : 'Official',},
 			{name :'Personal', value : 'Personal',},
@@ -114,11 +128,9 @@
 				taskStorage.save(task);
 			}
 		};
-		var promise = $http({method : "get", url : "/tasks"});
-		promise.then(function(response){
-			$scope.tasks.list = response.data.map(function(taskObj){
-				return new Task(taskObj);
-			});
+		var servicePromise = taskService.getAll()
+		servicePromise.then(function(result){
+			$scope.tasks.list = result;
 		});
 		
 	});
