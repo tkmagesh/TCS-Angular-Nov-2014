@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>Task Manager</title>
+	<style>
+	.completed {
+		color : red;
+		text-decoration: line-through;
+		font-weight: bold;
+		font-style: italic;
+	}
+	ol {
+		list-style: none;
+		width: 40%;
+	}
+	li {
+		margin : 1em;
+		border : 1px solid gray;
+		background: -webkit-linear-gradient(top, gray 0%, white 100%);
+		padding : 0.5em;
+		border-radius: 5px;
+	}
+	li h3{
+		-webkit-margin-before: 0em;
+		-webkit-margin-after: 0em;
+	}
+	</style>
+	<script src="angular.min.1.3.3.js"></script>
+	<script src="moment.js"></script>
+	<script>
+	var taskManagerApp = angular.module('taskManagerApp', []);
+
+	taskManagerApp.filter('toCurrentMoment', function(){
+		return function(value){
+			return moment(value).fromNow();
+		}
+	});
+
+	taskManagerApp.filter('completedCount', function(){
+		return function(tasks){
+			return tasks.reduce(function(result, task){
+				return task.isCompleted ? ++result : result;
+			},0);
+		}
+	})
+
+	taskManagerApp.factory('Task', function(){
+		function Task(defaults){
+			defaults = defaults || {};
+			this.id = defaults.id || new Date().getTime().toString();
+			this.name = defaults.name || "";
+			this.category = defaults.category || "Official";
+			this.createdAt = defaults.createdAt || new Date();
+			this.isCompleted = defaults.isCompleted || false;
+		}
+
+		Task.prototype.toggle = function(){
+			this.isCompleted = !this.isCompleted;
+		};
+		return Task;
+	});
+	
+
+	taskManagerApp.service('taskStorage', function TaskStorage(Task, $window){
+		this.storage = $window.localStorage;
+
+		this.save = function(task){
+			this.storage.setItem(task.id, $window.JSON.stringify(task));
+		};
+		this.remove = function(task){
+			this.storage.removeItem(task.id);
+		};
+		this.getAll = function(){
+			var result = [];
+			for(var key in this.storage){
+				result.push(new Task(JSON.parse(this.storage.getItem(key))));
+			}
+			return result;
+		}
+
+	});
+
+
+	taskManagerApp.controller('taskManagerController', function($scope, taskStorage, Task){
+		$scope.categories = [
+			{name :'Official', value : 'Official',},
+			{name :'Personal', value : 'Personal',},
+			{name :'Recreational', value : 'Recreational'}
+		];
+		$scope.tasks = {
+			list : taskStorage.getAll(),
+			addTask : function(taskName, category){
+				var newTask = new Task({
+					name : taskName,
+					category : category.name,
+					isCompleted : false
+				});
+				taskStorage.save(newTask);
+				this.list.push(newTask);
+			},
+			removeCompleted : function(){
+				for(var i=this.list.length-1;i>=0;i--){
+					if (this.list[i].isCompleted){
+						taskStorage.remove(this.list[i]);
+						this.list.splice(i,1);
+
+					}
+				}
+			},
+			toggle : function(task){
+				task.toggle();
+				taskStorage.save(task);
+			}
+		};
+		
+	});
+	</script>
+</head>
+<body data-ng-app="taskManagerApp">
+	<h1>Task Manager</h1>
+	<hr>
+	<div data-ng-controller="taskManagerController">
+
+		<div>Total Tasks : {{tasks.list.length}}</div>
+		<div>Completed Task : <span class="completed">{{tasks.list | completedCount}}</span></div>
+		<hr>	
+		<label for="">Task :</label>
+		<input type="text" name="" id="txtTask" data-ng-model="newTask">
+		<select data-ng-model="taskCategory" data-ng-options="category.name for category in categories"></select>
+		<input type="button" value="Add Task" id="btnAdd" data-ng-click="tasks.addTask(newTask, taskCategory)">
+		<input type="button" value="Remove Completed" id="btnRemoveCompleted" data-ng-click="tasks.removeCompleted()">
+		<div data-ng-repeat="categoryItem in categories">
+			<div data-ng-show="categoryItem.name === taskCategory.name">
+				<h3>{{categoryItem.name}}</h3>
+				<ol>
+				<li 
+					data-ng-repeat="item in tasks.list |filter:{category : categoryItem.name}" 
+					data-ng-click="toggle(item)"	
+				>
+					<h3 data-ng-class="{completed : item.isCompleted}">{{item.name}}</h3>
+					<div><i>{{item.createdAt | toCurrentMoment}}</i></div>
+				</li>
+			</div>
+		</ol>
+		</div>
+		
+		
+		<div></div>	
+	</div>
+</body>
+</html>
