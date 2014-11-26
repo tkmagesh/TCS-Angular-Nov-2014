@@ -82,14 +82,14 @@
 	});
 
 
-	taskManagerApp.controller('taskManagerController', function($scope, taskStorage, Task){
+	taskManagerApp.controller('taskManagerController', function($scope, taskStorage, Task, $http){
 		$scope.categories = [
 			{name :'Official', value : 'Official',},
 			{name :'Personal', value : 'Personal',},
 			{name :'Recreational', value : 'Recreational'}
 		];
 		$scope.tasks = {
-			list : taskStorage.getAll(),
+			list : [],
 			addTask : function(taskName, category){
 				var newTask = new Task({
 					name : taskName,
@@ -109,10 +109,17 @@
 				}
 			},
 			toggle : function(task){
+				console.log("task.toggle = " + typeof task.toggle);
 				task.toggle();
 				taskStorage.save(task);
 			}
 		};
+		var promise = $http({method : "get", url : "/tasks"});
+		promise.then(function(response){
+			$scope.tasks.list = response.data.map(function(taskObj){
+				return new Task(taskObj);
+			});
+		});
 		
 	});
 	</script>
@@ -131,14 +138,14 @@
 		<input type="button" value="Add Task" id="btnAdd" data-ng-click="tasks.addTask(newTask, taskCategory)">
 		<input type="button" value="Remove Completed" id="btnRemoveCompleted" data-ng-click="tasks.removeCompleted()">
 		<div data-ng-repeat="categoryItem in categories">
-			<div data-ng-show="categoryItem.name === taskCategory.name">
+			<div>
 				<h3>{{categoryItem.name}}</h3>
 				<ol>
 				<li 
 					data-ng-repeat="item in tasks.list |filter:{category : categoryItem.name}" 
-					data-ng-click="toggle(item)"	
+						
 				>
-					<h3 data-ng-class="{completed : item.isCompleted}">{{item.name}}</h3>
+					<h3 data-ng-class="{completed : item.isCompleted}" data-ng-click="tasks.toggle(item)">{{item.name}}</h3>
 					<div><i>{{item.createdAt | toCurrentMoment}}</i></div>
 				</li>
 			</div>
